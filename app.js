@@ -6,8 +6,9 @@ const SUBJECTS=['数学一','数学二','数学三','专业课','英语一','英
 const SERIES=['历年真题','模拟卷','专项练习','自建题目'];
 const TYPES=['单选题','多选题','填空题','解答题','证明题','其他'];
 const LEVELS=['基础','中等','较难','压轴'];
-const TABS=[['overview','⌂','总览'],['bank','▦','试题库'],['basket','▤','选题篮'],['auto','✦','智能组卷'],['papers','▣','我的试卷'],['exam','◷','限时模考'],['wrong','✎','错题本'],['stats','▥','学习统计'],['settings','⚙','备份与设置']];
+const TABS=[['overview','⌂','总览'],['bank','▦','试题库'],['basket','▤','选题篮'],['auto','✦','智能组卷'],['papers','▣','我的试卷'],['exam','◷','限时模考'],['wrong','✎','错题本'],['stats','▥','学习统计'],['pdf','▣','PDF 导入拆题'],['settings','⚙','备份与设置']];
 const EMPTY=()=>({schema:1,questions:[],basket:[],papers:[],records:[],exam:null,preferences:{subject:'数学一',paperDuration:180}});
+let pdfFeature=null;
 let data=EMPTY(),db=null,tab='overview',filter={text:'',subject:'全部',series:'全部',type:'全部',level:'全部',year:'全部',favorite:false},listPage=0,sort='recent',paperFocus='',recordFocus='',editingQuestion='',imageDraft='',notice='',noticeTimer=null,modalState='',saveTimer=null,writeQueue=Promise.resolve(),isReady=false,mediaQuery='';
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -56,14 +57,14 @@ function download(filename,content,contentType='application/json;charset=utf-8')
 function nav(to){tab=to;listPage=0;modalState='';closeModal();render();window.scrollTo(0,0)}
 function render(){if(!isReady){$('#app').innerHTML=panel('载入中…','正在打开你的个人本地题库。');return}
  $('#nav').innerHTML=TABS.map(([id,icon,name])=>`<button class="nav-btn ${tab===id?'active':''}" data-action="nav" data-id="${id}"><span class="nav-icon">${icon}</span>${name}${id==='basket'&&data.basket.length?` <span class="pill">${data.basket.length}</span>`:''}</button>`).join('');
- $('#app').innerHTML=({overview:home,bank:bank,basket:basketPage,auto:autoPage,papers:papersPage,exam:examPage,wrong:wrongPage,stats:statsPage,settings:settingsPage}[tab]||home)();
+ $('#app').innerHTML=({overview:home,bank:bank,basket:basketPage,auto:autoPage,papers:papersPage,exam:examPage,wrong:wrongPage,stats:statsPage,settings:settingsPage,pdf:()=>pdfFeature?.page()||panel('PDF 拆题','PDF 组件正在载入')}[tab]||home)();
  if(tab==='exam')tick();
 }
 function home(){const wrong=wrongInfo(),attempts=data.records.length,scoreSum=data.records.reduce((n,r)=>n+r.items.reduce((a,it)=>a+num(it.score),0),0),maxSum=data.records.reduce((n,r)=>n+points(r.items),0);
  return pageHead('今天也要稳步提分','把题目整理成卷，把每次模考转化为下一次进步。',button('＋ 新增试题','newQuestion','','')+button('开始组卷','nav','auto','muted-btn'))+
  `<div class="stat-grid"><div class="stat"><b>${data.questions.length}</b><small>已收录试题</small></div><div class="stat"><b>${data.papers.length}</b><small>我的套卷</small></div><div class="stat"><b>${attempts}</b><small>模考次数</small></div><div class="stat"><b>${fmtPct(scoreSum,maxSum)}</b><small>累计得分率</small></div></div>`+
  `<div class="banner"><b>独立项目 · 数据留在 Safari</b>　无需账号和服务器；首次使用请先录入或导入你拥有使用权的题目。网页自身不包含第三方收费题库数据。定期从「备份与设置」导出 JSON，以防清理浏览器数据。</div>`+
- `<div class="grid2">${panel('快速开始',`<p class="muted small">选题 → 组卷 → 导出 PDF → 限时答题 → 复盘错题。</p><div class="actions">${button('进入题库','nav','bank','')}${button('选题篮（'+data.basket.length+'）','nav','basket')}${button('智能组卷','nav','auto')}</div>`)}
+ `<div class="grid2">${panel('快速开始',`<p class="muted small">选题 → 组卷 → 导出 PDF → 限时答题 → 复盘错题。</p><div class="actions">${button('进入题库','nav','bank','')}${button('选题篮（'+data.basket.length+'）','nav','basket')}${button('智能组卷','nav','auto')}${button('PDF 导入拆题','nav','pdf')}</div>`)}
  ${panel('最近模考',data.records.length?data.records.slice(-3).reverse().map(r=>`<div class="history-row"><div><b>${escape(r.title)}</b><div class="small muted">${escape(r.finishedAt)}</div></div>${button('查看结果','viewRecord',r.id,'neutral')}</div>`).join(''):'<div class="empty">暂无记录。完成一次模拟考试后，成绩将显示在这里。</div>')}</div>`+
  panel('错题追踪',`<div class="between"><div><strong>${wrong.size} 道</strong><span class="muted small">　曾在模考中失分</span></div>${button('进入错题本','nav','wrong')}</div>`);
 }
@@ -125,8 +126,8 @@ function statsPage(){const attempts=data.records,earned=attempts.reduce((s,r)=>s
 }
 function settingsPage(){const s=JSON.stringify(data).length;
  return pageHead('备份与设置','所有题库、试卷和模考记录都只保存在当前 Safari 浏览器。')+
- panel('完整备份与恢复',`<p class="small muted">清除 Safari 网站数据、在不同的浏览器或主屏幕网页 App 之间切换，可能导致存储隔离或丢失。请定期把备份文件保存到「文件」App 或 iCloud Drive。</p><div class="actions">${button('⬇ 导出完整 JSON 备份','downloadBackup','','')}${button('⬇ 导出题库 JSON','downloadQuestions')}${button('⬇ 导出题库 CSV','downloadCsv')}</div><p class="foot">当前本地数据约 ${(s/1024).toFixed(1)} KB（未含浏览器数据库开销）。</p>`)+
- panel('导入试题',`<p class="small muted">支持 JSON 数组、题库导出文件、CSV 表格；LaTeX 公式以 $...$ 或 $$...$$ 输入。重复试题会按题干及来源跳过，第三方网站的付费题库不会被自动抓取。</p><label class="field"><span class="field-label">选择题库文件（.json / .csv）</span><input id="questionsUpload" type="file" accept=".json,.csv,application/json,text/csv"></label>${area('或粘贴 JSON 数组','jsonText','',5)}${button('导入粘贴的 JSON','importText','','muted-btn')}<p class="foot"><a href="./sample-questions.json" download="sample-questions.json">下载示例数据与字段格式</a>　${button('加载内置示例题','loadSample','','tiny neutral')}</p>`)+
+ panel('完整备份与恢复',`<p class="small muted"><b>重要：</b>完整 JSON 备份包含已拆分题目和题目截图，但<b>不包含另行保存的 PDF 原件</b>，请同时保留原始 PDF。</p><p class="small muted">清除 Safari 网站数据、在不同的浏览器或主屏幕网页 App 之间切换，可能导致存储隔离或丢失。请定期把备份文件保存到「文件」App 或 iCloud Drive。</p><div class="actions">${button('⬇ 导出完整 JSON 备份','downloadBackup','','')}${button('⬇ 导出题库 JSON','downloadQuestions')}${button('⬇ 导出题库 CSV','downloadCsv')}</div><p class="foot">当前本地数据约 ${(s/1024).toFixed(1)} KB（未含浏览器数据库开销）。</p>`)+
+ panel('导入试题',`<p class="small muted">整卷 PDF 请点击 ${button('PDF 导入拆题','nav','pdf','tiny muted-btn')} 进入单独的上传 / 识别页面。</p><p class="small muted">支持 JSON 数组、题库导出文件、CSV 表格；LaTeX 公式以 $...$ 或 $$...$$ 输入。重复试题会按题干及来源跳过，第三方网站的付费题库不会被自动抓取。</p><label class="field"><span class="field-label">选择题库文件（.json / .csv）</span><input id="questionsUpload" type="file" accept=".json,.csv,application/json,text/csv"></label>${area('或粘贴 JSON 数组','jsonText','',5)}${button('导入粘贴的 JSON','importText','','muted-btn')}<p class="foot"><a href="./sample-questions.json" download="sample-questions.json">下载示例数据与字段格式</a>　${button('加载内置示例题','loadSample','','tiny neutral')}</p>`)+
  panel('恢复完整备份',`<p class="small muted">完整恢复会覆盖本项目当前题目、题篮、试卷及模考记录。请先下载一份当前备份。</p><label class="field"><span class="field-label">选择研记模拟卷版的完整备份 JSON</span><input id="backupUpload" type="file" accept=".json,application/json"></label>`)+
  panel('偏好与维护',`<div class="grid2">${select('默认考试科目','prefSubject',SUBJECTS,data.preferences.subject)}${input('默认考试时长（分钟）','prefDuration',data.preferences.paperDuration,'number','min="1" max="600"')}</div><div class="actions">${button('保存默认设置','savePreferences','','muted-btn')}${button('清空所有本地数据','clearAll','','danger')}</div>`)+
  `<div class="banner"><b>关于隐私与访问</b><br>此项目不要求注册，也不发送试题、答案或考试记录到任何服务器。通过 GitHub Pages 访问时，网页代码通常可以被公开访问，但个人题库数据不会上传到 GitHub。别把含私人数据的备份提交到公开仓库。LaTeX 排版库首次可能需要网络加载。</div>`;
@@ -216,7 +217,7 @@ function handleAction(action,id){switch(action){
  case 'clearAll':if(confirm('删除本项目全部本地数据？这个操作不能撤销，请确认已有备份。')&&confirm('最后确认：清除题库、所有试卷及成绩？')){data=EMPTY();save(0);nav('overview');alertBox('数据已清空')}break;
  case 'loadSample':fetch('./sample-questions.json').then(r=>{if(!r.ok)throw Error('文件不可用');return r.json()}).then(cleanImported).catch(err=>alertBox('示例题读取失败：'+err.message,'error'));break;
  case 'nothing':break;
- default:break;
+ default:if(action.startsWith('pdf'))pdfFeature?.action(action,id);break;
 }}
 function handleSubmit(e){const form=e.target;if(!['filterForm','questionForm','basketPaperForm','autoForm','paperForm','scoreForm'].includes(form.id))return;e.preventDefault();try{
  if(form.id==='filterForm'){filter={text:v('search'),subject:v('subject'),series:v('series'),type:v('type'),level:v('level'),year:v('year'),favorite:!!$('#favOnly')?.checked};listPage=0;render()}
@@ -227,6 +228,7 @@ function handleSubmit(e){const form=e.target;if(!['filterForm','questionForm','b
  if(form.id==='scoreForm'){const r=data.records.find(x=>x.id===form.dataset.record);if(!r)return;r.items.forEach((it,i)=>{it.score=Math.max(0,Math.min(num(it.points),num(v('score_'+i))));it.reason=v('reason_'+i).slice(0,4000)});save();render();alertBox('评分已保存；错题本与统计同步更新')}
  }catch(err){alertBox('操作失败：'+err.message,'error')}}
 function onChange(e){const el=e.target;try{
+ if(el.id==='pdfUpload'){pdfFeature?.change(el);return}
  if(el.id==='sort'){sort=el.value;render()}
  if(el.id==='imageUpload'&&el.files?.[0]){compressImage(el.files[0]).then(encoded=>{imageDraft=encoded;alertBox('图片压缩完成，请点击「保存试题」')}).catch(err=>alertBox(err.message,'error'))}
  if(el.id==='questionsUpload'&&el.files?.[0]){const file=el.files[0];file.text().then(t=>cleanImported(file.name.toLowerCase().endsWith('.csv')?parseCsv(t):JSON.parse(t))).catch(err=>alertBox('导入失败：'+err.message,'error'));el.value=''}
@@ -234,7 +236,8 @@ function onChange(e){const el=e.target;try{
  if(el.classList.contains('answerChoice')&&data.exam){const id=el.dataset.id,px=p(data.exam.paperId),it=px?.items.find(x=>x.id===id),x=snapshot(it);if(x?.type==='多选题'){const checked=$$('.answerChoice').filter(node=>node.dataset.id===id&&node.checked).map(node=>node.value).join('');saveAnswer(id,checked)}else saveAnswer(id,el.value)}
  if(el.classList.contains('markExam')&&data.exam){data.exam.marked[el.dataset.id]=!!el.checked;const px=p(data.exam.paperId),index=px?.items.findIndex(it=>it.id===el.dataset.id);if(index>=0)document.querySelectorAll('.answer-number')[index]?.classList.toggle('flagged',!!el.checked);save()}
  }catch(err){alertBox(err.message,'error')}}
-document.addEventListener('click',e=>{const t=e.target.closest('[data-action]');if(!t)return;handleAction(t.dataset.action,t.dataset.id||'')});
+pdfFeature=window.YanjiPdfSplit?.create({getData:()=>data,save,render,alertBox,nav,cleanQuestion,makePaper,uid,escape,button,select,input})||null;
+document.addEventListener('click',e=>{if(pdfFeature?.clickPreview(e,e.target))return;const t=e.target.closest('[data-action]');if(!t)return;handleAction(t.dataset.action,t.dataset.id||'')});
 document.addEventListener('submit',handleSubmit);
 document.addEventListener('change',onChange);
 document.addEventListener('input',e=>{const el=e.target;if(el.classList.contains('freeAnswer')&&data.exam)saveAnswer(el.dataset.id,el.value)});

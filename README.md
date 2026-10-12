@@ -4,6 +4,8 @@
 
 ## 已实现功能
 
+- **V1.1 PDF 试卷导入与拆题：** 直接上传 PDF 到 Safari 本地原件库；文字型 PDF 按题号自动切分，扫描版可选择本地中文 OCR 或点击页图手动设切分线；逐题修改题干、题型、分值、勾选入库；可保存原卷截图片段以保留公式/图形，或仅存文本；支持自动生成同名模考试卷。OCR 需首次联网下载语言模型，中文数学 OCR 可能有误。PDF 原件单独保存，不包含在 JSON 完整备份中，备份时需单独保存 PDF。
+
 - 题库：手工录入、编辑/删除试题；支持图片、LaTeX 数学公式、参考答案与解析；按科目、来源（真题/模拟卷等）、年份、章节/知识点、题型、难度、关键词筛选；收藏。
 - 题目导入与导出：UTF-8 CSV、JSON 数组、完整本地 JSON 备份；以题干和来源为依据跳过重复题目；演示题可选择导入（原创，非网站真题）。
 - 选题篮：自由选题、调整题序、清空、保存为套卷；智能抽题（按科目、来源、难度、章节及各题型数量筛选，可优先未做题或错题）。
@@ -16,7 +18,7 @@
 ## 使用 GitHub Pages（单独新建仓库）
 
 1. 登录 GitHub，点击 `New repository`，仓库名建议 `yanji-mock-exam`，选择是否公开。**不要在旧「研记」仓库操作**。
-2. 解压 ZIP，上传其中的全部文件（`index.html`、`app.js`、`styles.css`、`manifest.webmanifest`、`sw.js`、`sample-questions.json`、`icon.svg`、3 张 PNG 图标、`README.md`），所有文件直接放在仓库根目录，提交到 `main`。
+2. 解压 ZIP，上传其中的全部文件（`index.html`、`app.js`、`pdf-import.js`、`styles.css`、`manifest.webmanifest`、`sw.js`、`sample-questions.json`、`icon.svg`、3 张 PNG 图标、`README.md`），所有文件直接放在仓库根目录，提交到 `main`。
 3. 在仓库 **Settings → Pages → Build and deployment**，选择 **Deploy from a branch**，分支 `main`，目录 `/(root)`，保存。
 4. 等待 GitHub Pages 显示网站网址，常见格式为 `https://你的用户名.github.io/yanji-mock-exam/`，在 **Safari** 打开此网址。
 5. Safari 分享菜单 → **添加到主屏幕**（可选）。建议固定通过一个入口使用。
