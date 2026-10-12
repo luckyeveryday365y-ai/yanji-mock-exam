@@ -16,7 +16,7 @@
 ## 使用 GitHub Pages（单独新建仓库）
 
 1. 登录 GitHub，点击 `New repository`，仓库名建议 `yanji-mock-exam`，选择是否公开。**不要在旧「研记」仓库操作**。
-2. 解压 ZIP，上传其中的全部文件（`index.html`、`app.js`、`styles.css`、`manifest.webmanifest`、`sw.js`、`sample-questions.json`、`icon.svg` 、`icon.svg`、3 张 PNG 图标、`README.md`、`sample-questions.json`），所有文件直接放在仓库根目录，提交到 `main`。
+2. 解压 ZIP，上传其中的全部文件（`index.html`、`app.js`、`styles.css`、`manifest.webmanifest`、`sw.js`、`sample-questions.json`、`icon.svg`、3 张 PNG 图标、`README.md`），所有文件直接放在仓库根目录，提交到 `main`。
 3. 在仓库 **Settings → Pages → Build and deployment**，选择 **Deploy from a branch**，分支 `main`，目录 `/(root)`，保存。
 4. 等待 GitHub Pages 显示网站网址，常见格式为 `https://你的用户名.github.io/yanji-mock-exam/`，在 **Safari** 打开此网址。
 5. Safari 分享菜单 → **添加到主屏幕**（可选）。建议固定通过一个入口使用。
