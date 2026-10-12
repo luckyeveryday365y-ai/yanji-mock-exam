@@ -2,6 +2,7 @@
 (() => {
 'use strict';
 const DB_NAME = 'yanji-mock-standalone-v1', DB_KEY='snapshot';
+const APP_VERSION='V1.2.1',APP_UPDATED='2026-10-13';
 const SUBJECTS=['数学一','数学二','数学三','专业课','英语一','英语二','政治'];
 const SERIES=['历年真题','模拟卷','专项练习','自建题目'];
 const TYPES=['单选题','多选题','填空题','解答题','证明题','其他'];
@@ -126,6 +127,7 @@ function statsPage(){const attempts=data.records,earned=attempts.reduce((s,r)=>s
 }
 function settingsPage(){const s=JSON.stringify(data).length;
  return pageHead('备份与设置','所有题库、试卷和模考记录都只保存在当前 Safari 浏览器。')+
+ panel('当前版本',`<p style="margin:0;font-size:16px"><strong>研记模拟卷版 ${APP_VERSION}</strong></p><p class="small muted" style="margin:7px 0 0">更新日期：${APP_UPDATED} · 当前 Safari 正在运行的网页版本</p><p class="small muted" style="margin:7px 0 0">若版本号尚未更新，请重新加载页面。升级不会主动清空题库或模考数据。</p>`)+
  panel('完整备份与恢复',`<p class="small muted"><b>重要：</b>完整 JSON 备份包含已拆分题目和题目截图，但<b>不包含另行保存的 PDF 原件</b>，请同时保留原始 PDF。</p><p class="small muted">清除 Safari 网站数据、在不同的浏览器或主屏幕网页 App 之间切换，可能导致存储隔离或丢失。请定期把备份文件保存到「文件」App 或 iCloud Drive。</p><div class="actions">${button('⬇ 导出完整 JSON 备份','downloadBackup','','')}${button('⬇ 导出题库 JSON','downloadQuestions')}${button('⬇ 导出题库 CSV','downloadCsv')}</div><p class="foot">当前本地数据约 ${(s/1024).toFixed(1)} KB（未含浏览器数据库开销）。</p>`)+
  panel('导入试题',`<p class="small muted">整卷 PDF 请点击 ${button('PDF 导入拆题','nav','pdf','tiny muted-btn')} 进入单独的上传 / 识别页面。</p><p class="small muted">支持 JSON 数组、题库导出文件、CSV 表格；LaTeX 公式以 $...$ 或 $$...$$ 输入。重复试题会按题干及来源跳过，第三方网站的付费题库不会被自动抓取。</p><label class="field"><span class="field-label">选择题库文件（.json / .csv）</span><input id="questionsUpload" type="file" accept=".json,.csv,application/json,text/csv"></label>${area('或粘贴 JSON 数组','jsonText','',5)}${button('导入粘贴的 JSON','importText','','muted-btn')}<p class="foot"><a href="./sample-questions.json" download="sample-questions.json">下载示例数据与字段格式</a>　${button('加载内置示例题','loadSample','','tiny neutral')}</p>`)+
  panel('恢复完整备份',`<p class="small muted">完整恢复会覆盖本项目当前题目、题篮、试卷及模考记录。请先下载一份当前备份。</p><label class="field"><span class="field-label">选择研记模拟卷版的完整备份 JSON</span><input id="backupUpload" type="file" accept=".json,application/json"></label>`)+
