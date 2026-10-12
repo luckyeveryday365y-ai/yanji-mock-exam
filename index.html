@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f6f8fc">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="研记模拟卷">
+  <meta name="description" content="研记模拟卷版：个人数学题库、智能组卷、限时模考与错题管理。数据保存在当前浏览器。">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
+  <script async src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js" onload="window.dispatchEvent(new Event('yanji-katex-ready'))"></script>
+  <script defer src="./app.js"></script>
+  <title>研记模拟卷版</title>
+</head>
+<body>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <div class="identity"><span class="logo">卷</span><div><strong>研记模拟卷版</strong><small>个人题库 · 自由组卷 · 沉浸模考</small></div></div>
+      <div class="top-actions"><span class="local-tag">◉ 本地私人使用</span><button class="btn muted-btn" type="button" data-action="downloadBackup">备份数据</button></div>
+    </div>
+  </header>
+  <div class="layout">
+    <aside class="sidebar" aria-label="主导航"><div id="nav"></div><p class="side-note">适配 iPhone / iPad Safari<br>不需要注册、登录或服务器</p></aside>
+    <main><div id="alert" aria-live="polite"></div><section id="app" aria-label="主要内容"></section></main>
+  </div>
+  <div id="modal" role="dialog" aria-modal="true" hidden></div>
+  <div id="printArea" aria-hidden="true"></div>
+</body>
+</html>
