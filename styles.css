@@ -13,3 +13,27 @@
 /* PDF 拆题工作台 */
 .pdf-thumb-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0 22px}.pdf-thumb{padding:10px;border:1px solid var(--line);border-radius:12px;background:#fafcff;min-width:0}.pdf-photo{position:relative;cursor:crosshair;margin-top:8px}.pdf-photo img{display:block;width:100%;height:auto;border:1px solid #e1e8f2;border-radius:7px;user-select:none}.pdf-cut-line{pointer-events:none;position:absolute;left:0;right:0;border-top:3px dashed #ec6154;background:#ffebeb88;height:4px}.pdf-draft{padding:15px;margin:10px 0;border:1px solid #e1e8f3;border-radius:11px;background:#fff}.pdf-draft textarea{min-height:86px}.pdf-draft .between{margin-bottom:10px}.pdf-check{display:flex;align-items:center;gap:7px;font-size:13px;line-height:1.7;color:#4a5a72;margin:8px 0}.pdf-check input[type=checkbox]{width:auto;min-height:0}.pdf-save-controls{border-top:1px solid var(--line);padding-top:17px}.pdf-crop-note{font-size:11px}@media(max-width:700px){.pdf-thumb-list{grid-template-columns:1fr}.pdf-draft{padding:11px}}
 .hidden{display:none!important}
+
+/* 数学题浏览版：参考用户截图的题号、公式与竖排选项结构；保留研记自身视觉标识。 */
+.q-card{padding:20px 22px;border:1px solid #dfe6ee;border-radius:18px}
+.q-topline{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.q-topline .btn{background:#fff;border:1px solid #bbcee3;border-radius:10px;color:#41698f;font-size:14px;padding:10px 13px;white-space:nowrap}
+.q-topline .btn.neutral{background:#eef5fd}
+.q-index{font-size:16px;font-weight:800;letter-spacing:.04em;color:#44698f;margin:0}
+.reference-no{color:#6b7480;margin-left:8px;font-weight:750}
+.q-subhead{font-size:11px;color:#8490a1;margin-top:4px;line-height:1.6}
+.q-divider{margin:14px 0 20px}
+.q-card .stem{font-family:"Songti SC","STSong","Noto Serif CJK SC","SimSun",serif;font-size:19px;line-height:1.8;color:#172235;white-space:pre-wrap;}
+.q-card .stem .katex{font-size:1.07em}
+.q-card .choices{display:flex;flex-direction:column;gap:10px;margin:16px 0 12px}
+.q-card .choices .choice-option{display:flex;align-items:center;gap:12px;min-height:58px;border:1px solid #dce3ec;border-radius:13px;padding:13px 15px;background:#fff;font-family:"Songti SC","STSong","Noto Serif CJK SC","SimSun",serif;font-size:18px;line-height:1.5}
+.choice-letter{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;background:#f3f7fa;border:1px solid #cddbe8;border-radius:8px;padding:5px 8px;min-width:31px;text-align:center;color:#446b91;font-size:15px;font-weight:750;line-height:1.2;flex-shrink:0}
+.choice-text{min-width:0;overflow-wrap:anywhere}
+.q-footer{margin-top:18px!important}
+.q-tags{margin-top:10px}
+.q-card .answer .stem{font-size:16px;line-height:1.8}
+@media(max-width:500px){.q-card{padding:16px 14px}.q-index{font-size:15px}.q-topline .btn{font-size:12px;padding:9px 10px}.q-card .stem{font-size:17px;line-height:1.75}.q-card .choices .choice-option{font-size:17px;padding:12px 12px;min-height:56px}}
+@media print{.q-card .choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px}.print-q .choices .choice-option{display:flex;border:0;border-radius:0;padding:1px;background:white;font-family:"Songti SC","SimSun",serif;font-size:10.5pt;min-height:0}.print-q .choices .choice-letter{border:0;padding:1px;background:none;font-size:10pt;min-width:auto}.print-q .stem{font-family:"Songti SC","SimSun",serif}}
+
+
+.original-proof{margin:18px 0 4px;border:1px solid #e1e5ed;background:#f7f9fc;border-radius:12px;padding:12px}.original-proof figcaption{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC',sans-serif;font-size:12px;color:#708099;margin-bottom:8px}.original-proof img{display:block;width:100%;max-height:560px;object-fit:contain}.editor-original{max-width:100%;max-height:320px;object-fit:contain;border-radius:9px}.recognition-state{display:inline-block;border-radius:6px;padding:2px 7px;margin-left:6px;background:#fff2d7;color:#986720}.recognition-state.verified{background:#e4f5ec;color:#26825f}

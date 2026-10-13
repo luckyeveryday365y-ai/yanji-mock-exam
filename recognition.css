@@ -1,0 +1,40 @@
+/* 研记模拟卷版 V1.0.4：iPhone/iPad Safari 拆题与试卷宋体重排 */
+:root{--exam-serif:"Songti SC","STSong","Noto Serif CJK SC","Source Han Serif SC","SimSun",serif}
+.q-card .stem,.q-card .choice-text,.rec-live,.rec-preview-stem{font-family:var(--exam-serif);font-size:18px;line-height:1.76;letter-spacing:.012em;font-weight:400;color:#20202b;font-synthesis:none}
+.q-card .stem .katex,.rec-live .katex{font-size:1.02em}
+.q-card .choices .choice-option{font-family:var(--exam-serif);font-size:17px;line-height:1.6;padding:11px 14px;min-height:53px;box-shadow:0 1px 2px #142c4205}
+.q-card .q-divider{margin:13px 0 16px}
+.q-card .choices{gap:8px}
+.q-card .stem .katex-display{margin:.55em 0}
+.original-proof{margin:18px 0 10px;padding:11px;background:#f8f9fb;border:1px solid #e0e5ed;border-radius:11px}
+.original-proof figcaption{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;font-size:12px;color:#677587;margin-bottom:8px}
+.original-proof img{width:auto;max-width:100%;max-height:650px;display:block;margin:0 auto;border-radius:6px}
+.recognition-state{display:inline-block;font-size:11px;letter-spacing:0;padding:2px 7px;border-radius:6px;margin-left:6px;font-weight:650}
+.recognition-state.pending{background:#fff4df;color:#906313}
+.recognition-state.verified{background:#e7f4ed;color:#297858}
+.editor-original{display:block;width:auto;max-width:100%;max-height:360px;object-fit:contain;border:1px solid #e2e7ed;border-radius:9px;padding:6px;margin:12px 0}
+.rec-toolbar{margin:11px 0;flex-wrap:wrap}
+.rec-toolbar .btn{margin:0}
+.rec-canvas-wrap{position:relative;overflow:hidden;border:1px solid #d7e0e9;background:#eef1f6;border-radius:12px;min-height:165px;line-height:0;touch-action:pan-y;}
+.rec-canvas-wrap canvas{display:block;width:100%;height:auto;touch-action:none;cursor:crosshair;user-select:none;-webkit-user-select:none}
+#recEmpty{padding:60px 16px;text-align:center;color:#8a96a4;font-size:13px;line-height:1.6;position:absolute;left:0;right:0;top:0;pointer-events:none}
+.rec-selection{position:absolute;display:none;pointer-events:none;border:2px solid #3b77df;background:#3b77df22;box-shadow:0 0 0 1px #fff;border-radius:3px}
+.rec-two-col{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.22fr);gap:14px}
+.rec-crop{background:#f7f8fa;min-height:125px;border:1px dashed #cbd7e5;border-radius:11px;padding:8px;display:grid;place-items:center}
+.rec-crop img{max-height:380px;max-width:100%;object-fit:contain}
+.rec-warn{background:#fff6e5;padding:11px 12px;border-radius:10px;color:#866331;font-size:12px;line-height:1.65;margin-bottom:13px}
+.rec-math-toolbar{margin:0 0 12px}
+.rec-formula-btn{background:#f4f6fb;border:1px solid #dce4ef;border-radius:7px;padding:6px 9px;font-size:12px;color:#415b7b}
+.rec-live{padding:11px 5px;font-size:18px;white-space:pre-wrap;overflow-wrap:anywhere}
+.rec-preview-stem{white-space:pre-wrap;line-height:1.7;min-width:0}
+.rec-preview-stem .katex-display{overflow-x:auto;overflow-y:hidden}
+.rec-choices{display:flex;flex-direction:column;gap:9px;margin-top:16px}
+.rec-opt{display:flex;gap:11px;align-items:center;background:#fff;border:1px solid #dce3ed;border-radius:12px;padding:12px 15px}
+.rec-opt b{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;font-size:14px;font-weight:750;color:#496a8e;background:#f3f7fa;border:1px solid #d2deeb;padding:5px 8px;border-radius:7px}
+.rec-proof{border-top:1px solid #e4e8ef;margin-top:24px;padding:15px 8px;background:#fafbfc;border-radius:9px}
+.rec-proof img{margin:10px auto 0;display:block;max-width:100%;max-height:550px;object-fit:contain}
+#recRaw{font-family:var(--exam-serif);font-size:14px;line-height:1.75}
+#recWorkbench .field-label{font-size:12px;color:#5e7088;font-weight:700}
+@media(max-width:800px){.rec-two-col{grid-template-columns:1fr}.rec-live,.q-card .stem{font-size:18px}.rec-canvas-wrap{min-height:110px}}
+@media(max-width:500px){.rec-live,.q-card .stem{font-size:17px;line-height:1.68}.q-card .choices .choice-option{font-size:17px;min-height:54px;line-height:1.6}.rec-opt{padding:11px 12px}.rec-preview-stem{font-size:17px}.rec-toolbar{gap:6px}.rec-toolbar .btn{font-size:12px;padding:8px 10px}}
+@media print{.original-proof{display:none!important}.rec-live{font-family:var(--exam-serif)}.print-sheet .stem,.print-sheet .choice-text{font-family:var(--exam-serif)!important}.print-sheet .stem{font-size:10.5pt!important;line-height:1.6!important}}

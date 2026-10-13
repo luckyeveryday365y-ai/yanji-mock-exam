@@ -2,14 +2,15 @@
 (() => {
 'use strict';
 const DB_NAME = 'yanji-mock-standalone-v1', DB_KEY='snapshot';
-const APP_VERSION='V1.2.1',APP_UPDATED='2026-10-13';
+const APP_VERSION='V1.2.2',APP_UPDATED='2026-10-13';
 const SUBJECTS=['数学一','数学二','数学三','专业课','英语一','英语二','政治'];
 const SERIES=['历年真题','模拟卷','专项练习','自建题目'];
 const TYPES=['单选题','多选题','填空题','解答题','证明题','其他'];
 const LEVELS=['基础','中等','较难','压轴'];
-const TABS=[['overview','⌂','总览'],['bank','▦','试题库'],['basket','▤','选题篮'],['auto','✦','智能组卷'],['papers','▣','我的试卷'],['exam','◷','限时模考'],['wrong','✎','错题本'],['stats','▥','学习统计'],['pdf','▣','PDF 导入拆题'],['settings','⚙','备份与设置']];
+const TABS=[['overview','⌂','总览'],['recognize','▧','识别校对'],['bank','▦','试题库'],['basket','▤','选题篮'],['auto','✦','智能组卷'],['papers','▣','我的试卷'],['exam','◷','限时模考'],['wrong','✎','错题本'],['stats','▥','学习统计'],['pdf','▣','PDF 导入拆题'],['settings','⚙','备份与设置']];
 const EMPTY=()=>({schema:1,questions:[],basket:[],papers:[],records:[],exam:null,preferences:{subject:'数学一',paperDuration:180}});
 let pdfFeature=null;
+let revealedAnswers=new Set(),originalDraft='';
 let data=EMPTY(),db=null,tab='overview',filter={text:'',subject:'全部',series:'全部',type:'全部',level:'全部',year:'全部',favorite:false},listPage=0,sort='recent',paperFocus='',recordFocus='',editingQuestion='',imageDraft='',notice='',noticeTimer=null,modalState='',saveTimer=null,writeQueue=Promise.resolve(),isReady=false,mediaQuery='';
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -38,16 +39,25 @@ function math(txt){return String(txt||'').split(/(\$\$[\s\S]*?\$\$|\$(?:\\.|[^\n
  }).join('');}
 function qTags(x){return [x.subject,x.series,x.year,x.source,x.chapter,x.level,...(x.tags||[])].filter(Boolean).map(s=>`<span class="chip">${escape(s)}</span>`).join('')}
 function qStem(x,showOptions=true){return `<div class="stem">${math(x.stem)}</div>`+
- (x.image&&/^data:image\/(png|jpeg|webp|gif);base64,/i.test(x.image)?`<img class="q-img" alt="试题图片" src="${escape(x.image)}">`:'')+
- ((showOptions&&(x.type==='单选题'||x.type==='多选题'))?`<div class="choices">${(x.options||[]).map((t,i)=>t?`<div>${'ABCD'[i]}. ${math(t)}</div>`:'').join('')}</div>`:'');}
+ (x.image&&/^data:image\/(png|jpeg|webp|gif);base64,/i.test(x.image)?`<img class="q-img" alt="试题中插图" src="${escape(x.image)}">`:'')+
+ ((showOptions&&(x.type==='单选题'||x.type==='多选题'))?`<div class="choices">${(x.options||[]).map((t,i)=>t?`<div class="choice-option"><span class="choice-letter">${'ABCD'[i]}</span><span class="choice-text">${math(t)}</span></div>`:'').join('')}</div>`:'')+
+ (x.originalImage&&/^data:image\/(png|jpeg|webp);base64,/i.test(x.originalImage)?`<figure class="original-proof"><figcaption>原题截图 · 可对照检查公式和排版</figcaption><img loading="lazy" alt="原题截图，请与识别重排内容核对" src="${escape(x.originalImage)}"></figure>`:'');}
 function answerBlock(x){return `<div class="answer"><h4>参考答案</h4><div class="stem">${math(x.answer||'（暂未填写答案）')}</div><hr class="divider"><h4>解题思路 / 解析</h4><div class="stem">${math(x.explanation||'（暂未填写解析）')}</div></div>`}
 function qRow(x,index=0,mode='bank'){
  const inBasket=data.basket.includes(x.id),isFav=!!x.favorite;
- return `<article class="panel q-card"><div class="between"><span class="q-index">${index?`第 ${index} 题 · `:''}${escape(x.type)} · ${num(x.points)} 分</span><span class="small muted">${escape(x.updatedAt||'')}</span></div><div>${qTags(x)}</div>${qStem(x)}<div class="actions" style="margin-top:13px">
- ${button(inBasket?'✓ 已入题篮':'＋ 加入题篮','toggleBasket',x.id,inBasket?'neutral':'muted-btn')}
+ const number=String(x.originalNumber||index||1).padStart(2,'0');
+ const external=x.externalId?` <span class="reference-no">#${escape(x.externalId)}</span>`:'';
+ const shown=revealedAnswers.has(x.id),status=x.recognition?.status;
+ return `<article class="panel q-card"><div class="q-topline"><div class="q-index">第 ${escape(number)} 题 ${external}</div>
+ ${button(inBasket?'✓ 已加入选题篮':'＋ 加入选题篮','toggleBasket',x.id,inBasket?'neutral':'muted-btn')}
+ </div><div class="q-subhead">${escape(x.type)} · ${num(x.points)} 分${x.source?' · '+escape(x.source):''}
+ ${status?`<span class="recognition-state ${status==='verified'?'verified':'pending'}">${status==='verified'?'已校对':'待校对 · 原图保留'}</span>`:''}</div>
+ <hr class="divider q-divider">${qStem(x)}<div class="actions q-footer">
+ ${button(shown?'⌃ 收起答案':'⌄ 查看答案','toggleAnswer',x.id,'neutral')}
  ${button(isFav?'★ 已收藏':'☆ 收藏','toggleFavorite',x.id,'neutral')}
- ${button('查看解析','questionDetail',x.id,'neutral')}
- ${mode==='bank'?button('编辑','editQuestion',x.id,'neutral')+button('删除','deleteQuestion',x.id,'danger'):''}</div></article>`;
+ ${mode==='bank'&&status==='pending'?button('确认校对完成','verifyQuestion',x.id,'muted-btn'):''}
+ ${mode==='bank'?button('编辑','editQuestion',x.id,'neutral')+button('删除','deleteQuestion',x.id,'danger'):''}</div>
+ ${shown?answerBlock(x):''}<div class="q-tags">${qTags(x)}</div></article>`;
 }
 function alertBox(message,type='info'){notice=message;$('#alert').innerHTML=`<div class="notice ${type}">${escape(message)}</div>`;clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>{if($('#alert'))$('#alert').innerHTML='';notice=''},4500)}
 function openDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open(DB_NAME,1);r.onupgradeneeded=()=>r.result.createObjectStore('state');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
@@ -58,11 +68,12 @@ function download(filename,content,contentType='application/json;charset=utf-8')
 function nav(to){tab=to;listPage=0;modalState='';closeModal();render();window.scrollTo(0,0)}
 function render(){if(!isReady){$('#app').innerHTML=panel('载入中…','正在打开你的个人本地题库。');return}
  $('#nav').innerHTML=TABS.map(([id,icon,name])=>`<button class="nav-btn ${tab===id?'active':''}" data-action="nav" data-id="${id}"><span class="nav-icon">${icon}</span>${name}${id==='basket'&&data.basket.length?` <span class="pill">${data.basket.length}</span>`:''}</button>`).join('');
- $('#app').innerHTML=({overview:home,bank:bank,basket:basketPage,auto:autoPage,papers:papersPage,exam:examPage,wrong:wrongPage,stats:statsPage,settings:settingsPage,pdf:()=>pdfFeature?.page()||panel('PDF 拆题','PDF 组件正在载入')}[tab]||home)();
+ $('#app').innerHTML=({overview:home,bank:bank,basket:basketPage,auto:autoPage,papers:papersPage,exam:examPage,wrong:wrongPage,stats:statsPage,settings:settingsPage,recognize:window.YanjiRecognition?.page||(()=>panel('识别模块未加载','请刷新网页重试')),pdf:()=>pdfFeature?.page()||panel('PDF 拆题','PDF 组件正在载入')}[tab]||home)();
  if(tab==='exam')tick();
+ if(tab==='recognize')requestAnimationFrame(()=>window.YanjiRecognition?.attach());
 }
 function home(){const wrong=wrongInfo(),attempts=data.records.length,scoreSum=data.records.reduce((n,r)=>n+r.items.reduce((a,it)=>a+num(it.score),0),0),maxSum=data.records.reduce((n,r)=>n+points(r.items),0);
- return pageHead('今天也要稳步提分','把题目整理成卷，把每次模考转化为下一次进步。',button('＋ 新增试题','newQuestion','','')+button('开始组卷','nav','auto','muted-btn'))+
+ return pageHead('今天也要稳步提分','把题目整理成卷，把每次模考转化为下一次进步。',button('识别 PDF / 图片','nav','recognize','muted-btn')+button('＋ 新增试题','newQuestion','','')+button('开始组卷','nav','auto','muted-btn'))+
  `<div class="stat-grid"><div class="stat"><b>${data.questions.length}</b><small>已收录试题</small></div><div class="stat"><b>${data.papers.length}</b><small>我的套卷</small></div><div class="stat"><b>${attempts}</b><small>模考次数</small></div><div class="stat"><b>${fmtPct(scoreSum,maxSum)}</b><small>累计得分率</small></div></div>`+
  `<div class="banner"><b>独立项目 · 数据留在 Safari</b>　无需账号和服务器；首次使用请先录入或导入你拥有使用权的题目。网页自身不包含第三方收费题库数据。定期从「备份与设置」导出 JSON，以防清理浏览器数据。</div>`+
  `<div class="grid2">${panel('快速开始',`<p class="muted small">选题 → 组卷 → 导出 PDF → 限时答题 → 复盘错题。</p><div class="actions">${button('进入题库','nav','bank','')}${button('选题篮（'+data.basket.length+'）','nav','basket')}${button('智能组卷','nav','auto')}${button('PDF 导入拆题','nav','pdf')}</div>`)}
@@ -129,19 +140,19 @@ function settingsPage(){const s=JSON.stringify(data).length;
  return pageHead('备份与设置','所有题库、试卷和模考记录都只保存在当前 Safari 浏览器。')+
  panel('当前版本',`<p style="margin:0;font-size:16px"><strong>研记模拟卷版 ${APP_VERSION}</strong></p><p class="small muted" style="margin:7px 0 0">更新日期：${APP_UPDATED} · 当前 Safari 正在运行的网页版本</p><p class="small muted" style="margin:7px 0 0">若版本号尚未更新，请重新加载页面。升级不会主动清空题库或模考数据。</p>`)+
  panel('完整备份与恢复',`<p class="small muted"><b>重要：</b>完整 JSON 备份包含已拆分题目和题目截图，但<b>不包含另行保存的 PDF 原件</b>，请同时保留原始 PDF。</p><p class="small muted">清除 Safari 网站数据、在不同的浏览器或主屏幕网页 App 之间切换，可能导致存储隔离或丢失。请定期把备份文件保存到「文件」App 或 iCloud Drive。</p><div class="actions">${button('⬇ 导出完整 JSON 备份','downloadBackup','','')}${button('⬇ 导出题库 JSON','downloadQuestions')}${button('⬇ 导出题库 CSV','downloadCsv')}</div><p class="foot">当前本地数据约 ${(s/1024).toFixed(1)} KB（未含浏览器数据库开销）。</p>`)+
- panel('导入试题',`<p class="small muted">整卷 PDF 请点击 ${button('PDF 导入拆题','nav','pdf','tiny muted-btn')} 进入单独的上传 / 识别页面。</p><p class="small muted">支持 JSON 数组、题库导出文件、CSV 表格；LaTeX 公式以 $...$ 或 $$...$$ 输入。重复试题会按题干及来源跳过，第三方网站的付费题库不会被自动抓取。</p><label class="field"><span class="field-label">选择题库文件（.json / .csv）</span><input id="questionsUpload" type="file" accept=".json,.csv,application/json,text/csv"></label>${area('或粘贴 JSON 数组','jsonText','',5)}${button('导入粘贴的 JSON','importText','','muted-btn')}<p class="foot"><a href="./sample-questions.json" download="sample-questions.json">下载示例数据与字段格式</a>　${button('加载内置示例题','loadSample','','tiny neutral')}</p>`)+
+ panel('导入试题',`<p class="small muted">整卷 PDF 请点击 ${button('PDF 导入拆题','nav','pdf','tiny muted-btn')} 进入单独的上传 / 识别页面。</p><p class="small muted">支持 JSON 数组、题库导出文件、CSV 表格；LaTeX 公式以 $...$ 或 $$...$$ 输入。重复试题会按题干及来源跳过，第三方网站的付费题库不会被自动抓取。</p><label class="field"><span class="field-label">选择题库文件（.json / .csv）</span><input id="questionsUpload" type="file" accept=".json,.csv,application/json,text/csv"></label>${area('或粘贴 JSON 数组','jsonText','',5)}${button('导入粘贴的 JSON','importText','','muted-btn')}<p class="foot"><a href="./sample-questions.json" download="sample-questions.json">下载示例数据与字段格式</a>　${button('加载内置示例题','loadSample','','tiny neutral')} ${button('导入截图参考题 #4965','loadReference','','tiny neutral')}</p>`)+
  panel('恢复完整备份',`<p class="small muted">完整恢复会覆盖本项目当前题目、题篮、试卷及模考记录。请先下载一份当前备份。</p><label class="field"><span class="field-label">选择研记模拟卷版的完整备份 JSON</span><input id="backupUpload" type="file" accept=".json,application/json"></label>`)+
  panel('偏好与维护',`<div class="grid2">${select('默认考试科目','prefSubject',SUBJECTS,data.preferences.subject)}${input('默认考试时长（分钟）','prefDuration',data.preferences.paperDuration,'number','min="1" max="600"')}</div><div class="actions">${button('保存默认设置','savePreferences','','muted-btn')}${button('清空所有本地数据','clearAll','','danger')}</div>`)+
  `<div class="banner"><b>关于隐私与访问</b><br>此项目不要求注册，也不发送试题、答案或考试记录到任何服务器。通过 GitHub Pages 访问时，网页代码通常可以被公开访问，但个人题库数据不会上传到 GitHub。别把含私人数据的备份提交到公开仓库。LaTeX 排版库首次可能需要网络加载。</div>`;
 }
-function closeModal(){const el=$('#modal');el.hidden=true;el.className='';el.innerHTML='';editingQuestion='';imageDraft='';modalState=''}
+function closeModal(){const el=$('#modal');el.hidden=true;el.className='';el.innerHTML='';editingQuestion='';imageDraft='';originalDraft='';modalState=''}
 function openModal(title,body,wide=false){const el=$('#modal');el.hidden=false;el.className='modal-layer';el.innerHTML=`<section class="modal-card" style="${wide?'width:min(900px,100%)':''}"><div class="modal-heading"><h2>${title}</h2>${button('关闭','closeModal','','neutral')}</div>${body}</section>`;}
-function questionEditor(id=''){const x=id?q(id):null;editingQuestion=id||'new';imageDraft=x?.image||'';
- openModal(id?'编辑试题':'新建试题',`<form id="questionForm"><div class="grid2">${select('科目','qSubject',SUBJECTS,x?.subject||data.preferences.subject)}${select('类别','qSeries',SERIES,x?.series||'自建题目')}${select('题型','qType',TYPES,x?.type||'解答题')}${select('难度','qLevel',LEVELS,x?.level||'中等')}${input('年份','qYear',x?.year||'')}${input('来源 / 试卷名','qSource',x?.source||'')}${input('章节','qChapter',x?.chapter||'')}${input('分值','qPoints',x?.points??12,'number','min="0" max="150"')}</div>${input('知识点标签（用逗号分隔）','qTags',(x?.tags||[]).join(', '))}${area('题干（支持 $LaTeX$ 公式）','qStem',x?.stem||'',5)}<div class="grid2">${[0,1,2,3].map((i)=>input('选项 '+('ABCD'[i]),'qOpt'+i,x?.options?.[i]||'')).join('')}</div>${area('参考答案','qAnswer',x?.answer||'',3)}${area('完整解析 / 推导过程','qExplanation',x?.explanation||'',5)}<label class="field"><span class="field-label">题干图片（可选，小于 5MB，自动压缩）</span><input id="imageUpload" type="file" accept="image/*"></label><div class="actions">${imageDraft?'<span class="chip blue">已有配图</span>':''}${button('移除配图','removeImage','','neutral')}</div><p class="actions"><button type="submit" class="btn">保存试题</button>${button('取消','closeModal','','neutral')}</p></form>`,true);
+function questionEditor(id=''){const x=id?q(id):null;editingQuestion=id||'new';imageDraft=x?.image||'';originalDraft=x?.originalImage||'';
+ openModal(id?'编辑试题':'新建试题',`<form id="questionForm"><div class="grid2">${select('科目','qSubject',SUBJECTS,x?.subject||data.preferences.subject)}${select('类别','qSeries',SERIES,x?.series||'自建题目')}${select('题型','qType',TYPES,x?.type||'解答题')}${select('难度','qLevel',LEVELS,x?.level||'中等')}${input('年份','qYear',x?.year||'')}${input('来源 / 试卷名','qSource',x?.source||'')}${input('原站题目 ID（可选）','qExternalId',x?.externalId||'')}${input('原卷题号（可选）','qOriginalNumber',x?.originalNumber||'')}${input('章节','qChapter',x?.chapter||'')}${input('分值','qPoints',x?.points??12,'number','min="0" max="150"')}</div>${input('知识点标签（用逗号分隔）','qTags',(x?.tags||[]).join(', '))}${area('题干（支持 $LaTeX$ 公式）','qStem',x?.stem||'',5)}<div class="grid2">${[0,1,2,3].map((i)=>input('选项 '+('ABCD'[i]),'qOpt'+i,x?.options?.[i]||'')).join('')}</div>${area('参考答案','qAnswer',x?.answer||'',3)}${area('完整解析 / 推导过程','qExplanation',x?.explanation||'',5)}<label class="field"><span class="field-label">题干图片（可选，小于 5MB，自动压缩）</span><input id="imageUpload" type="file" accept="image/*"></label><div class="actions">${imageDraft?'<span class="chip blue">已有配图</span>':''}${button('移除配图','removeImage','','neutral')}</div><hr class="divider"><h3>识别原图（可选，始终排在重排文字下方）</h3><label class="field"><span class="field-label">替换原题截图（高质量本地压缩）</span><input id="originalImageUpload" type="file" accept="image/*"></label><div class="actions">${originalDraft?'<span class="chip blue">已保留原图</span>':''}${button('移除原图','removeOriginal','','neutral')}</div>${originalDraft?`<img class="editor-original" src="${escape(originalDraft)}" alt="原题截图">`:''}<p class="actions"><button type="submit" class="btn">保存试题</button>${button('取消','closeModal','','neutral')}</p></form>`,true);
 }
 function detail(id,kind='bank'){const x=q(id)||wrongInfo().items.find(t=>t.id===id)?.question;if(!x)return alertBox('试题不存在','error');modalState=kind+':'+id;openModal('试题与完整解析',`<div>${qTags(x)}</div>${qStem(x)}${answerBlock(x)}<p class="actions">${q(id)?button(data.basket.includes(id)?'移出题篮':'加入题篮','toggleBasket',id,'muted-btn'):''}${q(id)?button('编辑题目','editQuestion',id,'neutral'):''}</p>`,true)}
 function cleanQuestion(x){if(!x||typeof x.stem!=='string'||!x.stem.trim())return null;
- return {id:typeof x.id==='string'&&x.id?x.id:uid(),subject:SUBJECTS.includes(x.subject)?x.subject:data.preferences.subject,series:SERIES.includes(x.series)?x.series:'自建题目',year:String(x.year??''),source:String(x.source??''),chapter:String(x.chapter??''),type:TYPES.includes(x.type)?x.type:'解答题',level:LEVELS.includes(x.level)?x.level:'中等',tags:Array.isArray(x.tags)?x.tags.map(String).slice(0,50):typeof x.tags==='string'?x.tags.split(/[,，、]/).map(t=>t.trim()).filter(Boolean).slice(0,50):[],points:Math.min(150,Math.max(0,num(x.points,12))),stem:x.stem.slice(0,100000),options:Array.isArray(x.options)?x.options.slice(0,4).map(y=>String(y??'')):[String(x.A??''),String(x.B??''),String(x.C??''),String(x.D??'')],answer:String(x.answer??''),explanation:String(x.explanation??''),favorite:!!x.favorite,image:typeof x.image==='string'&&/^data:image\/(png|jpeg|webp|gif);base64,/i.test(x.image)?x.image:'',createdAt:x.createdAt||when(),updatedAt:when()};
+ return {id:typeof x.id==='string'&&x.id?x.id:uid(),subject:SUBJECTS.includes(x.subject)?x.subject:data.preferences.subject,series:SERIES.includes(x.series)?x.series:'自建题目',year:String(x.year??''),source:String(x.source??''),externalId:String(x.externalId??'').slice(0,100),originalNumber:String(x.originalNumber??'').slice(0,20),chapter:String(x.chapter??''),type:TYPES.includes(x.type)?x.type:'解答题',level:LEVELS.includes(x.level)?x.level:'中等',tags:Array.isArray(x.tags)?x.tags.map(String).slice(0,50):typeof x.tags==='string'?x.tags.split(/[,，、]/).map(t=>t.trim()).filter(Boolean).slice(0,50):[],points:Math.min(150,Math.max(0,num(x.points,12))),stem:x.stem.slice(0,100000),options:Array.isArray(x.options)?x.options.slice(0,4).map(y=>String(y??'')):[String(x.A??''),String(x.B??''),String(x.C??''),String(x.D??'')],answer:String(x.answer??''),explanation:String(x.explanation??''),favorite:!!x.favorite,originalImage:typeof x.originalImage==='string'&&/^data:image\/(png|jpeg|webp);base64,/i.test(x.originalImage)?x.originalImage:'',recognition:x.recognition&&typeof x.recognition==='object'?{status:x.recognition.status==='verified'?'verified':'pending',method:String(x.recognition.method||'manual').slice(0,30),confidence:Number.isFinite(x.recognition.confidence)?x.recognition.confidence:null,rawText:String(x.recognition.rawText||'').slice(0,30000),sourceName:String(x.recognition.sourceName||'').slice(0,255),page:Number(x.recognition.page)||1}:null,image:typeof x.image==='string'&&/^data:image\/(png|jpeg|webp|gif);base64,/i.test(x.image)?x.image:'',createdAt:x.createdAt||when(),updatedAt:when()};
 }
 function makePaper(title,selected,{size='A4',duration=180,blank=35,subject='自定义'}={}){
  return {id:uid(),title:title.trim()||'未命名模拟卷',items:selected.map(x=>({id:x.id,points:num(x.points),question:JSON.parse(JSON.stringify(x))})),size,duration:Math.min(600,Math.max(1,num(duration,180))),blank:Math.min(120,Math.max(0,num(blank,35))),subject,printAnswers:false,createdAt:when(),updatedAt:when()};
@@ -170,6 +181,7 @@ function csvExport(){const columns=['subject','series','year','source','chapter'
 function backup(){download('研记模拟卷版_完整备份_'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify({kind:'yanji.mock.backup.v1',exportedAt:new Date().toISOString(),data},null,2))}
 function restore(raw){const obj=JSON.parse(raw);if(obj?.kind!=='yanji.mock.backup.v1'||!obj?.data||!Array.isArray(obj.data.questions)||!Array.isArray(obj.data.papers)||!Array.isArray(obj.data.records))throw Error('不是本项目的有效完整备份文件');if(!confirm('危险操作：完整备份将覆盖当前所有题目、试卷、考试记录。请先导出现在的数据。是否继续？'))return;if(!confirm('最后确认：确实覆盖当前本地数据吗？'))return;data={...EMPTY(),...obj.data};data.preferences={...EMPTY().preferences,...obj.data.preferences};save(0);recordFocus='';nav('overview');alertBox('完整备份已恢复');}
 async function compressImage(file){if(file.size>5*1024*1024)throw Error('图片不能大于 5MB');return await new Promise((resolve,reject)=>{const rd=new FileReader();rd.onerror=()=>reject(new Error('图片读取失败'));rd.onload=()=>{const im=new Image();im.onerror=()=>reject(new Error('图片格式不支持'));im.onload=()=>{try{const max=1500,scale=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(im.naturalWidth*scale));canvas.height=Math.max(1,Math.round(im.naturalHeight*scale));const ctx=canvas.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(im,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL('image/jpeg',.82))}catch(e){reject(e)}};im.src=String(rd.result)};rd.readAsDataURL(file)})}
+async function compressOriginal(file){if(file.size>18*1024*1024)throw Error('原题截图大于 18MB，请先压缩');return new Promise((resolve,reject)=>{const url=URL.createObjectURL(file),im=new Image();im.onload=()=>{try{const max=2600,scale=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');c.width=Math.round(im.naturalWidth*scale);c.height=Math.round(im.naturalHeight*scale);c.getContext('2d').drawImage(im,0,0,c.width,c.height);resolve(c.toDataURL('image/jpeg',.94))}catch(err){reject(err)}finally{URL.revokeObjectURL(url)}};im.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('原图无法读取'))};im.src=url})}
 function addWrongPaper(){const all=wrongInfo().items.map(it=>q(it.id)||it.question).filter(Boolean);if(!all.length)return alertBox('错题本为空');const title='错题专项重练 · '+today(),px=makePaper(title,all,{subject:data.preferences.subject});data.papers.push(px);save();nav('papers');alertBox('已生成错题专项卷（'+all.length+' 道）')}
 function smartPaper(form){const selected=[],needs={'单选题':num(v('autoSingle')),'多选题':num(v('autoMulti')),'填空题':num(v('autoBlankCount')),'解答题':num(v('autoSolve')),'证明题':num(v('autoProof')),'其他':num(v('autoOther'))};const subject=v('autoSubject'),series=v('autoSeries'),level=v('autoLevel'),topic=v('autoTopic'),strategy=v('autoStrategy');const used=new Set(data.records.flatMap(r=>r.items.map(it=>it.id)));const misses=[];const limit=v('autoMaxPoints').trim()?Math.max(1,num(v('autoMaxPoints'),1000)):Infinity;let sum=0;
  for(const [type,amount0] of Object.entries(needs)){const amount=Math.max(0,Math.min(100,Math.floor(amount0)));if(!amount)continue;
@@ -187,11 +199,14 @@ function handleAction(action,id){switch(action){
  case 'editQuestion':questionEditor(id);break;
  case 'closeModal':closeModal();break;
  case 'questionDetail':detail(id);break;
+ case 'toggleAnswer':revealedAnswers.has(id)?revealedAnswers.delete(id):revealedAnswers.add(id);render();break;
  case 'wrongDetail':detail(id,'wrong');break;
  case 'toggleBasket':if(data.basket.includes(id))data.basket=data.basket.filter(x=>x!==id);else if(q(id))data.basket.push(id);save();if($('#modal')&&!$('#modal').hidden&&modalState){detail(id)}else render();break;
  case 'toggleFavorite':{const x=q(id);if(x)x.favorite=!x.favorite;save();render();break}
  case 'deleteQuestion':if(confirm('删除此题？已创建试卷中的题目快照不会被删除。')){data.questions=data.questions.filter(x=>x.id!==id);data.basket=data.basket.filter(t=>t!==id);save();render()}break;
  case 'removeImage':imageDraft='';alertBox('已移除待保存的图片，请点击保存试题确认');break;
+ case 'removeOriginal':originalDraft='';alertBox('原图已标记为移除，保存试题后生效');break;
+ case 'verifyQuestion':{const x=q(id);if(!x?.recognition)return;if(!confirm('请先逐项核对原卷截图、题干、上下标、选项和公式 LaTeX。确认内容正确并标记为「已校对」吗？'))return;x.recognition.status='verified';x.updatedAt=when();save();render();alertBox('已确认这道题的识别文本');break}
  case 'basketMove':{const [i,d]=id.split(':'),a=Number(i),b=a+(d==='up'?-1:1);if(b>=0&&b<data.basket.length){[data.basket[a],data.basket[b]]=[data.basket[b],data.basket[a]];save();render()}break}
  case 'clearBasket':if(data.basket.length&&confirm('确定清空临时选题篮吗？')){data.basket=[];save();render()}break;
  case 'prevPage':listPage=Math.max(0,listPage-1);render();break;
@@ -217,13 +232,14 @@ function handleAction(action,id){switch(action){
  case 'importText':try{cleanImported(JSON.parse(v('jsonText')))}catch(err){alertBox('导入失败：'+err.message,'error')}break;
  case 'savePreferences':data.preferences.subject=v('prefSubject');data.preferences.paperDuration=Math.max(1,Math.min(600,num(v('prefDuration'),180)));save();render();alertBox('默认设置已保存');break;
  case 'clearAll':if(confirm('删除本项目全部本地数据？这个操作不能撤销，请确认已有备份。')&&confirm('最后确认：清除题库、所有试卷及成绩？')){data=EMPTY();save(0);nav('overview');alertBox('数据已清空')}break;
+ case 'loadReference':fetch('./screenshot-reference-question.json').then(r=>{if(!r.ok)throw Error('文件不可用');return r.json()}).then(cleanImported).catch(err=>alertBox('截图示例读取失败：'+err.message,'error'));break;
  case 'loadSample':fetch('./sample-questions.json').then(r=>{if(!r.ok)throw Error('文件不可用');return r.json()}).then(cleanImported).catch(err=>alertBox('示例题读取失败：'+err.message,'error'));break;
  case 'nothing':break;
  default:if(action.startsWith('pdf'))pdfFeature?.action(action,id);break;
 }}
 function handleSubmit(e){const form=e.target;if(!['filterForm','questionForm','basketPaperForm','autoForm','paperForm','scoreForm'].includes(form.id))return;e.preventDefault();try{
  if(form.id==='filterForm'){filter={text:v('search'),subject:v('subject'),series:v('series'),type:v('type'),level:v('level'),year:v('year'),favorite:!!$('#favOnly')?.checked};listPage=0;render()}
- if(form.id==='questionForm'){const old=q(editingQuestion),x=cleanQuestion({id:old?.id||uid(),subject:v('qSubject'),series:v('qSeries'),type:v('qType'),level:v('qLevel'),year:v('qYear'),source:v('qSource'),chapter:v('qChapter'),points:v('qPoints'),tags:v('qTags').split(/[,，、]/).map(s=>s.trim()).filter(Boolean),stem:v('qStem'),options:[0,1,2,3].map(i=>v('qOpt'+i)),answer:v('qAnswer'),explanation:v('qExplanation'),image:imageDraft,createdAt:old?.createdAt,favorite:old?.favorite});if(!x)throw Error('题干不能为空');if(old)Object.assign(old,x);else data.questions.push(x);save();closeModal();render();alertBox('试题保存成功')}
+ if(form.id==='questionForm'){const old=q(editingQuestion),x=cleanQuestion({id:old?.id||uid(),subject:v('qSubject'),series:v('qSeries'),type:v('qType'),level:v('qLevel'),year:v('qYear'),source:v('qSource'),externalId:v('qExternalId'),originalNumber:v('qOriginalNumber'),chapter:v('qChapter'),points:v('qPoints'),tags:v('qTags').split(/[,，、]/).map(s=>s.trim()).filter(Boolean),stem:v('qStem'),options:[0,1,2,3].map(i=>v('qOpt'+i)),answer:v('qAnswer'),explanation:v('qExplanation'),image:imageDraft,originalImage:originalDraft,recognition:old?.recognition||null,createdAt:old?.createdAt,favorite:old?.favorite});if(!x)throw Error('题干不能为空');if(old)Object.assign(old,x);else data.questions.push(x);save();closeModal();render();alertBox('试题保存成功')}
  if(form.id==='basketPaperForm'){let selected=data.basket.map(q).filter(Boolean);if(!selected.length)throw Error('题篮不能为空');const px=makePaper(v('basketTitle'),selected,{size:v('basketSize'),duration:num(v('basketDuration'),180),blank:num(v('basketBlank'),35),subject:selected[0].subject});data.papers.push(px);data.basket=[];save();nav('papers');alertBox('新试卷已创建，可编辑或打印')}
  if(form.id==='autoForm')smartPaper(form);
  if(form.id==='paperForm'){syncPaperForm();closeModal();render();alertBox('试卷排版与分值已保存')}
@@ -233,6 +249,7 @@ function onChange(e){const el=e.target;try{
  if(el.id==='pdfUpload'){pdfFeature?.change(el);return}
  if(el.id==='sort'){sort=el.value;render()}
  if(el.id==='imageUpload'&&el.files?.[0]){compressImage(el.files[0]).then(encoded=>{imageDraft=encoded;alertBox('图片压缩完成，请点击「保存试题」')}).catch(err=>alertBox(err.message,'error'))}
+ if(el.id==='originalImageUpload'&&el.files?.[0]){compressOriginal(el.files[0]).then(encoded=>{originalDraft=encoded;alertBox('原题截图已保存到编辑草稿，点击保存试题生效')}).catch(err=>alertBox(err.message,'error'))}
  if(el.id==='questionsUpload'&&el.files?.[0]){const file=el.files[0];file.text().then(t=>cleanImported(file.name.toLowerCase().endsWith('.csv')?parseCsv(t):JSON.parse(t))).catch(err=>alertBox('导入失败：'+err.message,'error'));el.value=''}
  if(el.id==='backupUpload'&&el.files?.[0]){el.files[0].text().then(restore).catch(err=>alertBox('备份恢复失败：'+err.message,'error'));el.value=''}
  if(el.classList.contains('answerChoice')&&data.exam){const id=el.dataset.id,px=p(data.exam.paperId),it=px?.items.find(x=>x.id===id),x=snapshot(it);if(x?.type==='多选题'){const checked=$$('.answerChoice').filter(node=>node.dataset.id===id&&node.checked).map(node=>node.value).join('');saveAnswer(id,checked)}else saveAnswer(id,el.value)}
@@ -247,6 +264,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#modal').hidden
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&saveTimer){clearTimeout(saveTimer);save(0)}});
 window.addEventListener('pagehide',()=>{if(saveTimer){clearTimeout(saveTimer);save(0)}});
 setInterval(()=>{if(tab==='exam'&&data.exam)tick()},1000);
+window.addEventListener('yanji-recognized-question',e=>{const raw=e.detail,x=cleanQuestion(raw);if(!x)return alertBox('识别结果无法保存：题干为空','error');data.questions.push(x);save(0);nav('bank');alertBox('已存入 1 道待校对试题。请对照下方原图修正公式，再点「确认校对完成」。')});
 window.addEventListener('yanji-katex-ready',()=>{if(isReady && !data.exam){render();if(modalState){const id=modalState.split(':').slice(1).join(':');if(id)detail(id,modalState.split(':')[0])}}});
 (async()=>{try{db=await openDB();const stored=await readDB();if(stored&&typeof stored==='object'){data={...EMPTY(),...stored};for(const name of ['questions','basket','papers','records'])if(!Array.isArray(data[name]))data[name]=[];data.preferences={...EMPTY().preferences,...(data.preferences||{})}}isReady=true;render();if('serviceWorker'in navigator&&location.protocol==='https:')navigator.serviceWorker.register('./sw.js').catch(()=>{});}catch(err){isReady=true;render();alertBox('无法开启本地存储，请确认 Safari 未禁止网站数据：'+err.message,'error')}})();
 })();
