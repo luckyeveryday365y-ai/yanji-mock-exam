@@ -2,7 +2,7 @@
 (() => {
 'use strict';
 const DB_NAME = 'yanji-mock-standalone-v1', DB_KEY='snapshot';
-const APP_VERSION='V1.2.2',APP_UPDATED='2026-10-13';
+const APP_VERSION='V1.2.3',APP_UPDATED='2026-10-13';
 const SUBJECTS=['数学一','数学二','数学三','专业课','英语一','英语二','政治'];
 const SERIES=['历年真题','模拟卷','专项练习','自建题目'];
 const TYPES=['单选题','多选题','填空题','解答题','证明题','其他'];

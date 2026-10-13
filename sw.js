@@ -1,4 +1,4 @@
-const CACHE='yanji-mock-v1.2.2';
+const CACHE='yanji-mock-v1.2.3';
 const ASSETS=['./','./index.html','./styles.css','./app.js','./pdf-import.js','./recognition.js','./recognition.css','./screenshot-reference-question.json','./icon.svg','./apple-touch-icon.png','./icon-192.png','./icon-512.png','./sample-questions.json','./manifest.webmanifest'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('yanji-mock-')&&k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim()});
